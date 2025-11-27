@@ -1,0 +1,115 @@
+# VitalSync - Docker Compose
+# Plataforma de Monitoreo de Salud Familiar
+#
+# Servicios:
+#   - vitalsync-api: API FastAPI (GraphQL + REST)
+#   - postgres: Base de datos PostgreSQL
+#   - nodered: Simulador IoT Node-RED
+#
+# Uso:
+#   docker-compose up -d
+#   docker-compose logs -f vitalsync-api
+
+services:
+  # =====================================================
+  # PostgreSQL Database
+  # =====================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: vitalsync-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DATABASE_USER:-vitalsync}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-vitalsync123}
+      POSTGRES_DB: ${DATABASE_NAME:-vitalsync}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Cargar el DDL inicial si existe
+      - ./VitalSync_DDL.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    ports:
+      - "${DATABASE_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-vitalsync} -d ${DATABASE_NAME:-vitalsync}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vitalsync-network
+
+  # =====================================================
+  # VitalSync API (FastAPI + GraphQL)
+  # =====================================================
+  vitalsync-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vitalsync-api
+    restart: unless-stopped
+    environment:
+      # Database
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: ${DATABASE_NAME:-vitalsync}
+      DATABASE_USER: ${DATABASE_USER:-vitalsync}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-vitalsync123}
+      # Server
+      HOST: 0.0.0.0
+      PORT: 8000
+      DEBUG: ${DEBUG:-false}
+      # JWT
+      JWT_SECRET: ${JWT_SECRET:-vitalsync-jwt-secret-change-in-production}
+      JWT_ALGORITHM: HS256
+      JWT_EXPIRATION_HOURS: 24
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - vitalsync-network
+
+  # =====================================================
+  # Node-RED IoT Simulator
+  # =====================================================
+  nodered:
+    image: nodered/node-red:latest
+    container_name: vitalsync-nodered
+    restart: unless-stopped
+    environment:
+      TZ: America/Mexico_City
+    volumes:
+      # Persistir datos de Node-RED
+      - nodered_data:/data
+      # Cargar el flow autom�ticamente
+      - ./Node-Red/flows/vitalsync_nodered_flow.json:/data/flows.json:ro
+      # Settings personalizados
+      - ./Node-Red/settings.js:/data/settings.js:ro
+    ports:
+      - "1880:1880"
+    depends_on:
+      vitalsync-api:
+        condition: service_healthy
+    networks:
+      - vitalsync-network
+
+# =====================================================
+# Networks
+# =====================================================
+networks:
+  vitalsync-network:
+    driver: bridge
+
+# =====================================================
+# Volumes
+# =====================================================
+volumes:
+  postgres_data:
+    driver: local
+  nodered_data:
+    driver: local

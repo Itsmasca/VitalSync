@@ -1,0 +1,74 @@
+# VitalSync - Docker Ignore
+# Archivos excluidos del contexto de build
+
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache
+.mypy_cache
+.ruff_cache
+*.egg-info
+dist
+build
+eggs
+*.egg
+
+# Virtual environments
+.venv
+venv
+ENV
+env
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# Testing
+.coverage
+htmlcov
+.tox
+.nox
+
+# Documentation
+docs/_build
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+Dockerfile*
+docker-compose*
+.docker
+
+# Node-RED data (se monta como volumen)
+nodered_data
+
+# Archivos temporales
+tmp
+temp
+*.tmp
+
+# Archivos de base de datos locales
+*.db
+*.sqlite
+*.sqlite3
