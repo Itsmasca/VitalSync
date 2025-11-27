@@ -11,8 +11,7 @@ from src.adapters.inbound.graphql.types import (
     CreateUserInput, LoginInput, CreateFamilyGroupInput, CreateFamilyMemberInput,
     RecordVitalInput, VitalThresholdsInput, AddCaregiverInput,
     UserRoleGQL, SubscriptionPlanGQL, RelationshipTypeGQL, DeviceTypeGQL,
-    VitalStatusGQL, AlertStatusGQL, AlertTypeGQL, VitalThresholdsType,
-    RiskLevelGQL, RiskFactorType, HealthRiskPredictionType, TrendPointType, RiskTrendType
+    VitalStatusGQL, AlertStatusGQL, AlertTypeGQL, VitalThresholdsType
 )
 from src.core.domain.UserModel import UserRole
 from src.core.domain.FamilyGroupModel import SubscriptionPlan
@@ -150,17 +149,14 @@ def caregiver_to_gql(caregiver) -> GroupCaregiverType:
     )
 
 
-# Context type for dependency injection (dataclass, not strawberry type)
-from dataclasses import dataclass
-
-@dataclass
+# Context type for dependency injection
+@strawberry.type
 class Context:
     user_service: any
     family_group_service: any
     family_member_service: any
     vital_service: any
     alert_service: any
-    ml_service: any = None
     current_user_id: Optional[str] = None
 
 
@@ -330,81 +326,6 @@ class Query:
             readings_last_hour=await ctx.vital_service.count_readings_last_hour(),
             active_alerts=await ctx.alert_service.count_active_alerts(),
             version="VitalSync MVP"
-        )
-
-    # ML Predictions
-    @strawberry.field
-    async def predict_health_risk(
-        self, info, member_id: str, use_trend: bool = False
-    ) -> Optional[HealthRiskPredictionType]:
-        """
-        Predice el riesgo de salud para un miembro familiar.
-        Usa el modelo PyTorch entrenado para analizar signos vitales.
-        """
-        ctx = get_context(info)
-        if not ctx.ml_service:
-            return None
-
-        prediction = await ctx.ml_service.predict_risk_for_member(
-            member_id=member_id,
-            use_latest=not use_trend
-        )
-
-        if prediction.confidence == 0.0 and not prediction.input_vitals:
-            return None
-
-        return HealthRiskPredictionType(
-            id=prediction.id,
-            member_id=prediction.member_id,
-            risk_level=RiskLevelGQL(prediction.risk_level.value),
-            risk_score=prediction.risk_score,
-            confidence=prediction.confidence,
-            cardiovascular_risk=prediction.cardiovascular_risk,
-            respiratory_risk=prediction.respiratory_risk,
-            metabolic_risk=prediction.metabolic_risk,
-            activity_risk=prediction.activity_risk,
-            risk_factors=[
-                RiskFactorType(
-                    category=f.category.value,
-                    contribution=f.contribution,
-                    description=f.description,
-                    metric=f.vital_metric,
-                    value=f.current_value,
-                    normal_range=f.normal_range
-                )
-                for f in prediction.risk_factors
-            ],
-            recommendations=prediction.recommendations,
-            model_version=prediction.model_version,
-            created_at=prediction.created_at
-        )
-
-    @strawberry.field
-    async def risk_trend(
-        self, info, member_id: str, hours: int = 24
-    ) -> Optional[RiskTrendType]:
-        """Analiza la tendencia de riesgo en el tiempo"""
-        ctx = get_context(info)
-        if not ctx.ml_service:
-            return None
-
-        trend = await ctx.ml_service.analyze_trend(
-            member_id=member_id,
-            hours=hours
-        )
-
-        return RiskTrendType(
-            member_id=member_id,
-            trend_direction=trend["trend_direction"],
-            average_risk=trend["average_risk"],
-            data_points=trend["data_points"],
-            predictions_over_time=[
-                TrendPointType(
-                    timestamp=p["timestamp"],
-                    risk_score=p["risk_score"]
-                )
-                for p in trend["predictions_over_time"]
-            ]
         )
 
 

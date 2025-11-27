@@ -109,25 +109,6 @@ class VitalRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_by_member_since(
-        self,
-        member_id: str,
-        since: datetime
-    ) -> List[Vital]:
-        """
-        Obtiene lecturas de un familiar desde una fecha específica.
-        Útil para análisis de tendencias en ML.
-
-        Args:
-            member_id: ID del familiar
-            since: Fecha desde la cual obtener lecturas
-
-        Returns:
-            Lista de lecturas desde esa fecha
-        """
-        pass
-
-    @abstractmethod
     async def get_by_member_last_minutes(
         self,
         member_id: str,

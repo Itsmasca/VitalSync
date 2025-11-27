@@ -7,16 +7,9 @@ import uuid
 
 class UserRole(Enum):
     """Roles disponibles para usuarios del sistema VitalSync"""
-    ADMIN = "admin"        # Administrador familiar (gestiona grupo y suscripcion)
+    ADMIN = "admin"        # Administrador familiar (gestiona grupo y suscripción)
     CAREGIVER = "caregiver"  # Cuidador (monitorea pero no administra)
     VIEWER = "viewer"      # Solo lectura (familiares con acceso limitado)
-
-
-class UserStatus(Enum):
-    """Estados posibles de un usuario"""
-    ACTIVE = "active"
-    INACTIVE = "inactive"
-    PENDING = "pending"
 
 
 @dataclass

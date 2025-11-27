@@ -133,7 +133,7 @@ class FamilyMemberEntity(Base):
     family_id = Column(UUID(as_uuid=True), ForeignKey("family_groups.id", ondelete="CASCADE"), nullable=False, index=True)
     member_id = Column(String(50), nullable=False, unique=True, index=True)
     name = Column(String(150), nullable=False)
-    relationship_type = Column(SQLEnum(RelationshipTypeEnum), nullable=False, index=True)
+    relationship = Column(SQLEnum(RelationshipTypeEnum), nullable=False, index=True)
     date_of_birth = Column(Date, nullable=True)
     gender = Column(SQLEnum(GenderEnum), nullable=True)
     device_id = Column(String(50), nullable=False, unique=True, index=True)

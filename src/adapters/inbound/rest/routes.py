@@ -2,7 +2,7 @@
 Rutas REST para recibir datos de dispositivos IoT (Node-RED).
 """
 from datetime import datetime, timezone
-from typing import Optional, List, Dict, Any
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
@@ -13,7 +13,6 @@ from src.adapters.outbound.persistance import (
     AlertRepositoryImpl
 )
 from src.core.services import VitalService
-from src.ml.services.prediction_service import HealthRiskPredictionService
 
 router = APIRouter(prefix="/api", tags=["IoT Vitals"])
 
@@ -198,172 +197,3 @@ async def health_check():
             readings_last_hour=readings_last_hour,
             active_alerts=active_alerts
         )
-
-
-# ============================================================================
-# ML PREDICTION ENDPOINTS
-# ============================================================================
-
-class RiskPredictionResponse(BaseModel):
-    """Respuesta de predicción de riesgo"""
-    id: str
-    member_id: str
-    risk_level: str
-    risk_score: float
-    confidence: float
-    risks: Dict[str, float]
-    risk_factors: List[Dict[str, Any]]
-    recommendations: List[str]
-    model_version: str
-    created_at: datetime
-
-
-class TrendAnalysisResponse(BaseModel):
-    """Respuesta de análisis de tendencia"""
-    member_id: str
-    trend_direction: str
-    average_risk: float
-    data_points: int
-    predictions_over_time: List[Dict[str, Any]]
-
-
-@router.get("/ml/predict/{member_id}", response_model=RiskPredictionResponse)
-async def predict_health_risk(member_id: str, use_trend: bool = False):
-    """
-    Predice el riesgo de salud para un miembro familiar.
-
-    Usa el modelo de ML para analizar los signos vitales y predecir
-    la probabilidad de eventos adversos en las próximas 24 horas.
-
-    Args:
-        member_id: ID del miembro familiar
-        use_trend: Si usar análisis de tendencia (últimas 24h) o solo última lectura
-    """
-    async with AsyncSessionLocal() as session:
-        vital_repo = VitalRepositoryImpl(session)
-        ml_service = HealthRiskPredictionService(vital_repo)
-
-        try:
-            prediction = await ml_service.predict_risk_for_member(
-                member_id=member_id,
-                use_latest=not use_trend
-            )
-
-            if prediction.confidence == 0.0 and not prediction.input_vitals:
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"No hay datos de signos vitales para el miembro {member_id}"
-                )
-
-            return RiskPredictionResponse(
-                id=prediction.id,
-                member_id=prediction.member_id,
-                risk_level=prediction.risk_level.value,
-                risk_score=prediction.risk_score,
-                confidence=prediction.confidence,
-                risks={
-                    "cardiovascular": prediction.cardiovascular_risk,
-                    "respiratory": prediction.respiratory_risk,
-                    "metabolic": prediction.metabolic_risk,
-                    "activity": prediction.activity_risk
-                },
-                risk_factors=[
-                    {
-                        "category": f.category.value,
-                        "contribution": f.contribution,
-                        "description": f.description,
-                        "metric": f.vital_metric,
-                        "value": f.current_value,
-                        "normal_range": f.normal_range
-                    }
-                    for f in prediction.risk_factors
-                ],
-                recommendations=prediction.recommendations,
-                model_version=prediction.model_version,
-                created_at=prediction.created_at
-            )
-
-        except HTTPException:
-            raise
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error en predicción: {str(e)}")
-
-
-@router.get("/ml/trend/{member_id}", response_model=TrendAnalysisResponse)
-async def analyze_risk_trend(member_id: str, hours: int = 24):
-    """
-    Analiza la tendencia de riesgo de un miembro en el tiempo.
-
-    Args:
-        member_id: ID del miembro familiar
-        hours: Horas hacia atrás para el análisis (default: 24)
-    """
-    async with AsyncSessionLocal() as session:
-        vital_repo = VitalRepositoryImpl(session)
-        ml_service = HealthRiskPredictionService(vital_repo)
-
-        try:
-            trend = await ml_service.analyze_trend(
-                member_id=member_id,
-                hours=hours
-            )
-
-            return TrendAnalysisResponse(
-                member_id=member_id,
-                trend_direction=trend["trend_direction"],
-                average_risk=trend["average_risk"],
-                data_points=trend["data_points"],
-                predictions_over_time=trend["predictions_over_time"]
-            )
-
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error en análisis: {str(e)}")
-
-
-@router.post("/ml/predict/batch", response_model=Dict[str, RiskPredictionResponse])
-async def predict_batch(member_ids: List[str]):
-    """
-    Predice riesgo para múltiples miembros.
-
-    Útil para obtener el estado de riesgo de toda una familia.
-    """
-    async with AsyncSessionLocal() as session:
-        vital_repo = VitalRepositoryImpl(session)
-        ml_service = HealthRiskPredictionService(vital_repo)
-
-        try:
-            predictions = await ml_service.predict_risk_batch(member_ids)
-
-            return {
-                member_id: RiskPredictionResponse(
-                    id=pred.id,
-                    member_id=pred.member_id,
-                    risk_level=pred.risk_level.value,
-                    risk_score=pred.risk_score,
-                    confidence=pred.confidence,
-                    risks={
-                        "cardiovascular": pred.cardiovascular_risk,
-                        "respiratory": pred.respiratory_risk,
-                        "metabolic": pred.metabolic_risk,
-                        "activity": pred.activity_risk
-                    },
-                    risk_factors=[
-                        {
-                            "category": f.category.value,
-                            "contribution": f.contribution,
-                            "description": f.description,
-                            "metric": f.vital_metric,
-                            "value": f.current_value,
-                            "normal_range": f.normal_range
-                        }
-                        for f in pred.risk_factors
-                    ],
-                    recommendations=pred.recommendations,
-                    model_version=pred.model_version,
-                    created_at=pred.created_at
-                )
-                for member_id, pred in predictions.items()
-            }
-
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error en predicción batch: {str(e)}")

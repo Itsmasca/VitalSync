@@ -1,8 +1,7 @@
 # VitalSync API - Dockerfile
 # Plataforma de Monitoreo de Salud Familiar
 
-ARG TARGETPLATFORM=linux/amd64
-FROM --platform=$TARGETPLATFORM python:3.13-slim
+FROM python:3.13-slim
 
 # Metadata
 LABEL maintainer="VitalSync Team"
@@ -38,12 +37,6 @@ COPY src/ ./src/
 COPY main.py ./
 COPY alembic/ ./alembic/
 COPY alembic.ini ./
-
-# Copy ML model (if exists)
-COPY models/ ./models/
-
-# Copy training scripts (optional, for retraining)
-COPY scripts/ ./scripts/
 
 # Expose port
 EXPOSE 8000

@@ -19,25 +19,17 @@ from src.core.services import (
     UserService, FamilyGroupService, FamilyMemberService,
     VitalService, AlertService
 )
-from src.ml.services.prediction_service import HealthRiskPredictionService
 from src.config.Settings import settings
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Inicializa la base de datos y el modelo ML al arrancar"""
-    print("VitalSync - Iniciando...")
-    print("  -> Inicializando base de datos...")
+    """Inicializa la base de datos al arrancar"""
+    print("🏥 Inicializando base de datos...")
     await init_db()
-    print("  -> Base de datos lista")
-    print("  -> Cargando modelo ML de prediccion de riesgo...")
-    # Pre-cargar el modelo ML para que este listo
-    from src.ml.models.vital_risk_network import VitalRiskPredictor
-    _ = VitalRiskPredictor()
-    print("  -> Modelo ML cargado")
-    print("VitalSync listo!")
+    print("✅ Base de datos inicializada")
     yield
-    print("Cerrando VitalSync...")
+    print("👋 Cerrando VitalSync...")
 
 
 def create_app() -> FastAPI:
@@ -89,7 +81,6 @@ def create_app() -> FastAPI:
             family_member_service = FamilyMemberService(family_member_repo, family_group_repo)
             vital_service = VitalService(vital_repo, family_member_repo, alert_repo)
             alert_service = AlertService(alert_repo)
-            ml_service = HealthRiskPredictionService(vital_repo)
 
             return Context(
                 user_service=user_service,
@@ -97,7 +88,6 @@ def create_app() -> FastAPI:
                 family_member_service=family_member_service,
                 vital_service=vital_service,
                 alert_service=alert_service,
-                ml_service=ml_service,
                 current_user_id=current_user_id
             )
 

@@ -85,26 +85,6 @@ class VitalRepositoryImpl(VitalRepository):
         entities = result.scalars().all()
         return [VitalMapper.to_domain(e) for e in entities]
 
-    async def get_by_member_since(
-        self,
-        member_id: str,
-        since: datetime
-    ) -> List[Vital]:
-        """Obtiene lecturas desde una fecha específica para análisis ML"""
-        stmt = (
-            select(VitalEntity)
-            .where(
-                and_(
-                    VitalEntity.member_id == member_id,
-                    VitalEntity.reading_timestamp >= since
-                )
-            )
-            .order_by(VitalEntity.reading_timestamp.asc())
-        )
-        result = await self.session.execute(stmt)
-        entities = result.scalars().all()
-        return [VitalMapper.to_domain(e) for e in entities]
-
     async def get_by_member_last_minutes(
         self,
         member_id: str,

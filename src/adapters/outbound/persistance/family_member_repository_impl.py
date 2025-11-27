@@ -34,7 +34,7 @@ class FamilyMemberRepositoryImpl(FamilyMemberRepository):
         entity.family_id = member.family_id
         entity.member_id = member.member_id
         entity.name = member.name
-        entity.relationship_type = RelationshipTypeEnum(member.relationship.value)
+        entity.relationship = RelationshipTypeEnum(member.relationship.value)
         entity.date_of_birth = member.date_of_birth
         entity.gender = member.gender.value if member.gender else None
         entity.device_id = member.device_id
@@ -101,7 +101,7 @@ class FamilyMemberRepositoryImpl(FamilyMemberRepository):
     ) -> List[FamilyMember]:
         stmt = select(FamilyMemberEntity).where(
             FamilyMemberEntity.family_id == family_id,
-            FamilyMemberEntity.relationship_type == RelationshipTypeEnum(relationship.value)
+            FamilyMemberEntity.relationship == RelationshipTypeEnum(relationship.value)
         )
         result = await self.session.execute(stmt)
         entities = result.scalars().all()
