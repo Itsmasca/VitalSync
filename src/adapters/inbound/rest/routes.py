@@ -1,21 +1,243 @@
 """
-Rutas REST para recibir datos de dispositivos IoT (Node-RED).
+Rutas REST para VitalSync - IoT y Autenticacion.
 """
 from datetime import datetime, timezone
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field, EmailStr
+import bcrypt
 
 from src.adapters.outbound.persistance import (
     AsyncSessionLocal,
     VitalRepositoryImpl,
     FamilyMemberRepositoryImpl,
-    AlertRepositoryImpl
+    AlertRepositoryImpl,
+    UserRepositoryImpl
 )
 from src.core.services import VitalService
+from src.core.services.auth_service import auth_service
 from src.core.events import broadcaster
+from src.core.domain.UserModel import User, UserRole
+from src.adapters.inbound.middleware.auth_middleware import (
+    require_auth,
+    get_current_user_payload
+)
 
-router = APIRouter(prefix="/api", tags=["IoT Vitals"])
+router = APIRouter(prefix="/api", tags=["VitalSync API"])
+
+
+# ============== AUTH SCHEMAS ==============
+
+class RegisterInput(BaseModel):
+    """Schema para registro de usuario"""
+    email: EmailStr
+    password: str = Field(..., min_length=6)
+    name: str = Field(..., min_length=2)
+    phone: Optional[str] = None
+
+
+class LoginInput(BaseModel):
+    """Schema para login"""
+    email: EmailStr
+    password: str
+
+
+class TokenResponse(BaseModel):
+    """Respuesta con tokens JWT"""
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int = 1800  # 30 min en segundos
+
+
+class RefreshInput(BaseModel):
+    """Schema para refresh token"""
+    refresh_token: str
+
+
+class UserResponse(BaseModel):
+    """Respuesta con datos del usuario"""
+    id: str
+    email: str
+    name: str
+    role: str
+    phone: Optional[str]
+    is_active: bool
+    email_verified: bool
+
+
+# ============== AUTH ENDPOINTS ==============
+
+@router.post("/auth/register", response_model=TokenResponse, status_code=201, tags=["Auth"])
+async def register(data: RegisterInput):
+    """
+    Registra un nuevo usuario en el sistema.
+    RF-AUTH-01: Registro de usuarios
+    """
+    async with AsyncSessionLocal() as session:
+        user_repo = UserRepositoryImpl(session)
+
+        # Verificar si el email ya existe
+        existing = await user_repo.get_by_email(data.email)
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El email ya esta registrado"
+            )
+
+        # Hash de la contraseña
+        password_hash = bcrypt.hashpw(
+            data.password.encode('utf-8'),
+            bcrypt.gensalt()
+        ).decode('utf-8')
+
+        # Crear usuario
+        user = User.create(
+            email=data.email,
+            password_hash=password_hash,
+            name=data.name,
+            role=UserRole.CAREGIVER,
+            phone=data.phone
+        )
+
+        # Guardar
+        user = await user_repo.save(user)
+
+        # Generar tokens
+        access_token = auth_service.create_access_token(
+            user_id=user.id,
+            email=user.email,
+            role=user.role.value
+        )
+        refresh_token = auth_service.create_refresh_token(user.id)
+
+        return TokenResponse(
+            access_token=access_token,
+            refresh_token=refresh_token
+        )
+
+
+@router.post("/auth/login", response_model=TokenResponse, tags=["Auth"])
+async def login(data: LoginInput):
+    """
+    Autentica un usuario y retorna tokens JWT.
+    RF-AUTH-02: Login con JWT
+    """
+    async with AsyncSessionLocal() as session:
+        user_repo = UserRepositoryImpl(session)
+
+        # Buscar usuario
+        user = await user_repo.get_by_email(data.email)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Credenciales invalidas"
+            )
+
+        # Verificar contraseña
+        if not bcrypt.checkpw(
+            data.password.encode('utf-8'),
+            user.password_hash.encode('utf-8')
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Credenciales invalidas"
+            )
+
+        # Verificar que el usuario esté activo
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Usuario desactivado"
+            )
+
+        # Registrar login
+        user.register_login()
+        await user_repo.save(user)
+
+        # Generar tokens
+        access_token = auth_service.create_access_token(
+            user_id=user.id,
+            email=user.email,
+            role=user.role.value
+        )
+        refresh_token = auth_service.create_refresh_token(user.id)
+
+        return TokenResponse(
+            access_token=access_token,
+            refresh_token=refresh_token
+        )
+
+
+@router.get("/auth/me", response_model=UserResponse, tags=["Auth"])
+async def get_current_user(user_id: str = Depends(require_auth)):
+    """
+    Obtiene la informacion del usuario autenticado.
+    RF-AUTH-03: Perfil de usuario
+    """
+    async with AsyncSessionLocal() as session:
+        user_repo = UserRepositoryImpl(session)
+
+        user = await user_repo.get_by_id(user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Usuario no encontrado"
+            )
+
+        return UserResponse(
+            id=user.id,
+            email=user.email,
+            name=user.name,
+            role=user.role.value,
+            phone=user.phone,
+            is_active=user.is_active,
+            email_verified=user.email_verified
+        )
+
+
+@router.post("/auth/refresh", response_model=TokenResponse, tags=["Auth"])
+async def refresh_token(data: RefreshInput):
+    """
+    Renueva el access token usando un refresh token valido.
+    RF-AUTH-04: Refresh de tokens
+    """
+    # Verificar refresh token
+    payload = auth_service.verify_token(data.refresh_token)
+
+    if not payload or payload.get("type") != "refresh":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token invalido o expirado"
+        )
+
+    user_id = payload.get("sub")
+
+    async with AsyncSessionLocal() as session:
+        user_repo = UserRepositoryImpl(session)
+        user = await user_repo.get_by_id(user_id)
+
+        if not user or not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Usuario no valido"
+            )
+
+        # Generar nuevos tokens
+        access_token = auth_service.create_access_token(
+            user_id=user.id,
+            email=user.email,
+            role=user.role.value
+        )
+        refresh_token = auth_service.create_refresh_token(user.id)
+
+        return TokenResponse(
+            access_token=access_token,
+            refresh_token=refresh_token
+        )
+
+
+# ============== IOT VITALS SCHEMAS ==============
 
 
 class VitalReadingInput(BaseModel):
