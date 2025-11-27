@@ -1,0 +1,380 @@
+{
+	"info": {
+		"_postman_id": "vitalsync-api-collection",
+		"name": "VitalSync API",
+		"description": "Colección de endpoints para VitalSync - Plataforma de Monitoreo de Salud Familiar",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"type": "string"
+		},
+		{
+			"key": "graphql_url",
+			"value": "{{base_url}}/graphql",
+			"type": "string"
+		},
+		{
+			"key": "device_id",
+			"value": "XIAOMI-PAPA-001",
+			"type": "string"
+		},
+		{
+			"key": "member_id",
+			"value": "familia-garcia-papa",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Health & Status",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/health",
+							"host": ["{{base_url}}"],
+							"path": ["api", "health"]
+						},
+						"description": "Verifica el estado del sistema VitalSync"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Vitals - IoT Data",
+			"item": [
+				{
+					"name": "POST Vital Reading",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"deviceId\": \"{{device_id}}\",\n    \"memberId\": \"{{member_id}}\",\n    \"memberName\": \"Roberto García\",\n    \"relationship\": \"padre\",\n    \"heartRate\": 72,\n    \"oxygenLevel\": 96.5,\n    \"bodyTemperature\": 36.5,\n    \"steps\": 3200,\n    \"timestamp\": \"{{$isoTimestamp}}\",\n    \"isAnomaly\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/vitals",
+							"host": ["{{base_url}}"],
+							"path": ["api", "vitals"]
+						},
+						"description": "Recibe una lectura de signos vitales desde Node-RED"
+					},
+					"response": []
+				},
+				{
+					"name": "POST Vital - Warning Values",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"deviceId\": \"{{device_id}}\",\n    \"heartRate\": 110,\n    \"oxygenLevel\": 92.0,\n    \"bodyTemperature\": 37.8,\n    \"steps\": 2500,\n    \"timestamp\": \"{{$isoTimestamp}}\",\n    \"isAnomaly\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/vitals",
+							"host": ["{{base_url}}"],
+							"path": ["api", "vitals"]
+						},
+						"description": "Envía valores en rango de advertencia"
+					},
+					"response": []
+				},
+				{
+					"name": "POST Vital - Critical Values",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"deviceId\": \"{{device_id}}\",\n    \"heartRate\": 145,\n    \"oxygenLevel\": 85.0,\n    \"bodyTemperature\": 39.5,\n    \"steps\": 500,\n    \"timestamp\": \"{{$isoTimestamp}}\",\n    \"isAnomaly\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/vitals",
+							"host": ["{{base_url}}"],
+							"path": ["api", "vitals"]
+						},
+						"description": "Envía valores críticos que generarán alertas"
+					},
+					"response": []
+				},
+				{
+					"name": "GET Latest Vital by Device",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/vitals/latest/{{device_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "vitals", "latest", "{{device_id}}"]
+						},
+						"description": "Obtiene la última lectura de un dispositivo"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "ML Predictions",
+			"item": [
+				{
+					"name": "GET Health Risk Prediction",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/ml/predict/{{member_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ml", "predict", "{{member_id}}"]
+						},
+						"description": "Predice el riesgo de salud usando ML"
+					},
+					"response": []
+				},
+				{
+					"name": "GET Health Risk with Trend",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/ml/predict/{{member_id}}?use_trend=true",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ml", "predict", "{{member_id}}"],
+							"query": [
+								{
+									"key": "use_trend",
+									"value": "true"
+								}
+							]
+						},
+						"description": "Predice riesgo usando análisis de tendencia (últimas 24h)"
+					},
+					"response": []
+				},
+				{
+					"name": "GET Risk Trend Analysis",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/ml/trend/{{member_id}}?hours=24",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ml", "trend", "{{member_id}}"],
+							"query": [
+								{
+									"key": "hours",
+									"value": "24"
+								}
+							]
+						},
+						"description": "Analiza tendencia de riesgo en el tiempo"
+					},
+					"response": []
+				},
+				{
+					"name": "POST Batch Prediction",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "[\n    \"familia-garcia-papa\",\n    \"familia-garcia-mama\",\n    \"familia-garcia-abuelo\"\n]"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/ml/predict/batch",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ml", "predict", "batch"]
+						},
+						"description": "Predicción de riesgo para múltiples miembros"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "GraphQL",
+			"item": [
+				{
+					"name": "Introspection Query",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"query\": \"{ __schema { types { name } } }\"\n}"
+						},
+						"url": {
+							"raw": "{{graphql_url}}",
+							"host": ["{{graphql_url}}"]
+						},
+						"description": "Query de introspección GraphQL"
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Family Members",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"query\": \"query { familyMembers { id memberId name relationshipType deviceId isActive } }\"\n}"
+						},
+						"url": {
+							"raw": "{{graphql_url}}",
+							"host": ["{{graphql_url}}"]
+						},
+						"description": "Obtiene todos los miembros familiares"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Member Vitals",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"query\": \"query GetVitals($memberId: String!) { vitalsByMember(memberId: $memberId, limit: 10) { id heartRate oxygenLevel bodyTemperature steps overallStatus readingTimestamp } }\",\n    \"variables\": {\n        \"memberId\": \"{{member_id}}\"\n    }\n}"
+						},
+						"url": {
+							"raw": "{{graphql_url}}",
+							"host": ["{{graphql_url}}"]
+						},
+						"description": "Obtiene los signos vitales de un miembro"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Active Alerts",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"query\": \"query { activeAlerts { id alertType severity message memberId createdAt } }\"\n}"
+						},
+						"url": {
+							"raw": "{{graphql_url}}",
+							"host": ["{{graphql_url}}"]
+						},
+						"description": "Obtiene las alertas activas"
+					},
+					"response": []
+				},
+				{
+					"name": "ML - Predict Health Risk",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"query\": \"query PredictRisk($memberId: String!) { predictHealthRisk(memberId: $memberId) { id riskLevel riskScore confidence cardiovascularRisk respiratoryRisk metabolicRisk activityRisk recommendations } }\",\n    \"variables\": {\n        \"memberId\": \"{{member_id}}\"\n    }\n}"
+						},
+						"url": {
+							"raw": "{{graphql_url}}",
+							"host": ["{{graphql_url}}"]
+						},
+						"description": "Predicción de riesgo de salud via GraphQL"
+					},
+					"response": []
+				},
+				{
+					"name": "ML - Risk Trend",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"query\": \"query RiskTrend($memberId: String!, $hours: Int) { riskTrend(memberId: $memberId, hours: $hours) { memberId trendDirection averageRisk dataPoints } }\",\n    \"variables\": {\n        \"memberId\": \"{{member_id}}\",\n        \"hours\": 24\n    }\n}"
+						},
+						"url": {
+							"raw": "{{graphql_url}}",
+							"host": ["{{graphql_url}}"]
+						},
+						"description": "Análisis de tendencia de riesgo via GraphQL"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Family Member",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"query\": \"mutation CreateMember($input: FamilyMemberInput!) { createFamilyMember(input: $input) { id memberId name deviceId } }\",\n    \"variables\": {\n        \"input\": {\n            \"familyId\": \"familia-garcia\",\n            \"memberId\": \"familia-garcia-test\",\n            \"name\": \"Test User\",\n            \"relationshipType\": \"OTHER\",\n            \"deviceId\": \"TEST-DEVICE-001\",\n            \"deviceType\": \"SMARTWATCH\"\n        }\n    }\n}"
+						},
+						"url": {
+							"raw": "{{graphql_url}}",
+							"host": ["{{graphql_url}}"]
+						},
+						"description": "Crea un nuevo miembro familiar"
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}
