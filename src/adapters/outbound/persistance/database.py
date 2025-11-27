@@ -21,6 +21,7 @@ async_engine = create_async_engine(
     pool_pre_ping=True
 )
 
+
 # Session factories
 SessionLocal = sessionmaker(
     bind=engine,

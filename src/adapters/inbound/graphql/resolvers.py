@@ -150,8 +150,10 @@ def caregiver_to_gql(caregiver) -> GroupCaregiverType:
     )
 
 
-# Context type for dependency injection
-@strawberry.type
+# Context type for dependency injection (dataclass, not strawberry type)
+from dataclasses import dataclass
+
+@dataclass
 class Context:
     user_service: any
     family_group_service: any
