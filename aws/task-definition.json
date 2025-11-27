@@ -1,0 +1,97 @@
+{
+  "family": "vitalsync",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "executionRoleArn": "arn:aws:iam::009160070658:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::009160070658:role/ecsTaskRole",
+  "runtimePlatform": {
+    "cpuArchitecture": "X86_64",
+    "operatingSystemFamily": "LINUX"
+  },
+  "containerDefinitions": [
+    {
+      "name": "vitalsync-api",
+      "image": "009160070658.dkr.ecr.us-east-1.amazonaws.com/vitalsync:latest",
+      "essential": true,
+      "cpu": 1024,
+      "memory": 2048,
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "hostPort": 8000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "DEBUG",
+          "value": "false"
+        },
+        {
+          "name": "HOST",
+          "value": "0.0.0.0"
+        },
+        {
+          "name": "PORT",
+          "value": "8000"
+        },
+        {
+          "name": "JWT_ALGORITHM",
+          "value": "HS256"
+        },
+        {
+          "name": "JWT_EXPIRATION_HOURS",
+          "value": "24"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DATABASE_HOST",
+          "valueFrom": "arn:aws:ssm:us-east-1:009160070658:parameter/vitalsync/database/host"
+        },
+        {
+          "name": "DATABASE_PORT",
+          "valueFrom": "arn:aws:ssm:us-east-1:009160070658:parameter/vitalsync/database/port"
+        },
+        {
+          "name": "DATABASE_NAME",
+          "valueFrom": "arn:aws:ssm:us-east-1:009160070658:parameter/vitalsync/database/name"
+        },
+        {
+          "name": "DATABASE_USER",
+          "valueFrom": "arn:aws:ssm:us-east-1:009160070658:parameter/vitalsync/database/user"
+        },
+        {
+          "name": "DATABASE_PASSWORD",
+          "valueFrom": "arn:aws:ssm:us-east-1:009160070658:parameter/vitalsync/database/password"
+        },
+        {
+          "name": "SECRET_KEY",
+          "valueFrom": "arn:aws:ssm:us-east-1:009160070658:parameter/vitalsync/app/secret-key"
+        },
+        {
+          "name": "JWT_SECRET",
+          "valueFrom": "arn:aws:ssm:us-east-1:009160070658:parameter/vitalsync/app/jwt-secret"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/vitalsync",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs",
+          "awslogs-create-group": "true"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "curl -f http://localhost:8000/api/health || exit 1"],
+        "interval": 30,
+        "timeout": 10,
+        "retries": 3,
+        "startPeriod": 60
+      }
+    }
+  ]
+}
