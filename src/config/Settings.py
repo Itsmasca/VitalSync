@@ -5,7 +5,7 @@ from dataclasses import dataclass
 @dataclass
 class Settings:
     """
-    Configuración de la aplicación VitalSync.
+    Configuracion de la aplicacion VitalSync.
     Lee las variables de entorno y proporciona valores por defecto.
     """
     # Database
@@ -30,14 +30,14 @@ class Settings:
 
     @property
     def DATABASE_URL(self) -> str:
-        """URL de conexión async para PostgreSQL"""
+        """URL de conexion async para PostgreSQL"""
         return f"postgresql+asyncpg://{self.DATABASE_USER}:{self.DATABASE_PASSWORD}@{self.DATABASE_HOST}:{self.DATABASE_PORT}/{self.DATABASE_NAME}"
 
     @property
     def DATABASE_URL_SYNC(self) -> str:
-        """URL de conexión sync para PostgreSQL (Alembic)"""
+        """URL de conexion sync para PostgreSQL (Alembic)"""
         return f"postgresql://{self.DATABASE_USER}:{self.DATABASE_PASSWORD}@{self.DATABASE_HOST}:{self.DATABASE_PORT}/{self.DATABASE_NAME}"
 
 
-# Singleton de configuración
+# Singleton de configuracion
 settings = Settings()

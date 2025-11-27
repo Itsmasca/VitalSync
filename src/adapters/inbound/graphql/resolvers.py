@@ -470,5 +470,92 @@ class Mutation:
         return alert_to_gql(alert) if alert else None
 
 
-# Schema
-schema = strawberry.Schema(query=Query, mutation=Mutation)
+# ============================================================================
+# SUBSCRIPTIONS - Real-time updates via WebSocket
+# ============================================================================
+
+from typing import AsyncGenerator
+from src.adapters.inbound.graphql.broadcaster import broadcaster, EventType
+
+
+@strawberry.type
+class Subscription:
+    @strawberry.subscription
+    async def vital_updated(
+        self, info, member_id: Optional[str] = None
+    ) -> AsyncGenerator[VitalType, None]:
+        """
+        Suscripción a actualizaciones de signos vitales en tiempo real.
+
+        Args:
+            member_id: ID del miembro a monitorear. Si es None, recibe todos.
+
+        Ejemplo GraphQL:
+            subscription {
+                vitalUpdated(memberId: "familia-garcia-papa") {
+                    id
+                    heartRate
+                    oxygenLevel
+                    bodyTemperature
+                    overallStatus
+                    readingTimestamp
+                }
+            }
+        """
+        async for event in broadcaster.subscribe_vitals(member_id):
+            if event.type == EventType.VITAL_UPDATED:
+                yield vital_to_gql(event.payload)
+
+    @strawberry.subscription
+    async def alert_created(
+        self, info, family_id: Optional[str] = None
+    ) -> AsyncGenerator[AlertType, None]:
+        """
+        Suscripción a nuevas alertas en tiempo real.
+
+        Args:
+            family_id: ID de la familia. Si es None, recibe todas las alertas.
+
+        Ejemplo GraphQL:
+            subscription {
+                alertCreated(familyId: "familia-garcia") {
+                    id
+                    alertType
+                    severity
+                    message
+                    memberId
+                    createdAt
+                }
+            }
+        """
+        async for event in broadcaster.subscribe_alerts(family_id):
+            if event.type == EventType.ALERT_CREATED:
+                yield alert_to_gql(event.payload)
+
+    @strawberry.subscription
+    async def member_status_changed(
+        self, info, member_id: str
+    ) -> AsyncGenerator[FamilyMemberType, None]:
+        """
+        Suscripción a cambios de estado de un miembro específico.
+
+        Args:
+            member_id: ID del miembro a monitorear (requerido).
+
+        Ejemplo GraphQL:
+            subscription {
+                memberStatusChanged(memberId: "familia-garcia-papa") {
+                    id
+                    name
+                    isActive
+                    alertsEnabled
+                }
+            }
+        """
+        async for event in broadcaster.subscribe_member_status(member_id):
+            if event.type == EventType.MEMBER_STATUS_CHANGED:
+                yield family_member_to_gql(event.payload)
+
+
+# Schema con Query, Mutation y Subscription
+schema = strawberry.Schema(query=Query, mutation=Mutation, subscription=Subscription)

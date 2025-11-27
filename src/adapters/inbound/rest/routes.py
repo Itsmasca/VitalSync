@@ -13,6 +13,7 @@ from src.adapters.outbound.persistance import (
     AlertRepositoryImpl
 )
 from src.core.services import VitalService
+from src.adapters.inbound.graphql.broadcaster import broadcaster
 
 router = APIRouter(prefix="/api", tags=["IoT Vitals"])
 
@@ -117,6 +118,23 @@ async def record_vital(reading: VitalReadingInput):
 
             # Obtener el member para el device_id
             member = await family_member_repo.get_by_device_id(reading.deviceId)
+
+            # Publicar evento para subscriptions en tiempo real
+            await broadcaster.publish_vital(
+                vital_data=vital,
+                member_id=vital.member_id,
+                family_id=member.family_id if member else None
+            )
+
+            # Si se generaron alertas, publicarlas también
+            if alerts_generated > 0:
+                new_alerts = await alert_repo.get_by_member(vital.member_id, limit=alerts_generated)
+                for alert in new_alerts:
+                    await broadcaster.publish_alert(
+                        alert_data=alert,
+                        member_id=alert.member_id,
+                        family_id=member.family_id if member else None
+                    )
 
             return VitalReadingResponse(
                 id=vital.id,

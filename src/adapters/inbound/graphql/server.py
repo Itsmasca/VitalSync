@@ -1,5 +1,6 @@
 """
 Servidor FastAPI con GraphQL y REST para VitalSync.
+Incluye soporte para WebSockets (GraphQL Subscriptions).
 """
 from contextlib import asynccontextmanager
 from typing import Optional
