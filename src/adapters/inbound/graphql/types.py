@@ -192,7 +192,11 @@ class GroupCaregiverType:
 
 @strawberry.type
 class AuthPayload:
-    token: str
+    """Respuesta de autenticacion con tokens JWT"""
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int = 1800  # 30 minutos
     user: UserType
 
 

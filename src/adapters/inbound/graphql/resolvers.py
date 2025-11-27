@@ -349,19 +349,26 @@ class Mutation:
 
     @strawberry.mutation
     async def login(self, info, input: LoginInput) -> Optional[AuthPayload]:
-        """Inicia sesion y retorna token JWT"""
+        """Inicia sesion y retorna tokens JWT"""
         ctx = get_context(info)
         user = await ctx["user_service"].authenticate(input.email, input.password)
         if not user:
             return None
-        # Generar JWT real
+        # Generar JWT tokens
         from src.core.services.auth_service import auth_service
-        token = auth_service.create_access_token(
+        access_token = auth_service.create_access_token(
             user_id=user.id,
             email=user.email,
             role=user.role.value
         )
-        return AuthPayload(token=token, user=user_to_gql(user))
+        refresh_token = auth_service.create_refresh_token(user.id)
+        return AuthPayload(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            token_type="bearer",
+            expires_in=1800,
+            user=user_to_gql(user)
+        )
 
     # Family Groups
     @strawberry.mutation
