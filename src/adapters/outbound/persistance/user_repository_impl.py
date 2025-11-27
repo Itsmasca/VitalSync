@@ -87,13 +87,6 @@ class UserRepositoryImpl(UserRepository):
         entities = result.scalars().all()
         return [UserMapper.to_domain(e) for e in entities]
 
-    async def get_by_status(self, status) -> List[User]:
-        # UserStatus was removed, using is_active instead
-        stmt = select(UserEntity).where(UserEntity.is_active == True)
-        result = await self.session.execute(stmt)
-        entities = result.scalars().all()
-        return [UserMapper.to_domain(e) for e in entities]
-
     async def exists_by_email(self, email: str) -> bool:
         stmt = select(func.count()).select_from(UserEntity).where(UserEntity.email == email)
         result = await self.session.execute(stmt)
@@ -102,11 +95,5 @@ class UserRepositoryImpl(UserRepository):
 
     async def count(self) -> int:
         stmt = select(func.count()).select_from(UserEntity)
-        result = await self.session.execute(stmt)
-        return result.scalar()
-
-    async def count_by_status(self, status) -> int:
-        # Using is_active instead of status
-        stmt = select(func.count()).select_from(UserEntity).where(UserEntity.is_active == True)
         result = await self.session.execute(stmt)
         return result.scalar()

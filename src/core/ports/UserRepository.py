@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from src.core.domain.UserModel import User, UserRole, UserStatus
+from src.core.domain.UserModel import User, UserRole
 
 
 class UserRepository(ABC):
@@ -130,19 +130,6 @@ class UserRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_by_status(self, status: UserStatus) -> List[User]:
-        """
-        Obtiene todos los usuarios con un estado específico.
-
-        Args:
-            status: Estado a filtrar
-
-        Returns:
-            Lista de usuarios con ese estado
-        """
-        pass
-
-    @abstractmethod
     async def exists_by_email(self, email: str) -> bool:
         """
         Verifica si existe un usuario con el email dado.
@@ -161,19 +148,6 @@ class UserRepository(ABC):
         Cuenta el total de usuarios.
 
         Returns:
-            Número total de usuarios
-        """
-        pass
-
-    @abstractmethod
-    async def count_by_status(self, status: UserStatus) -> int:
-        """
-        Cuenta usuarios por estado.
-
-        Args:
-            status: Estado a contar
-
-        Returns:
-            Número de usuarios con ese estado
+            Numero total de usuarios
         """
         pass
