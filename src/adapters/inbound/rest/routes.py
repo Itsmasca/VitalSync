@@ -13,7 +13,7 @@ from src.adapters.outbound.persistance import (
     AlertRepositoryImpl
 )
 from src.core.services import VitalService
-from src.adapters.inbound.graphql.broadcaster import broadcaster
+from src.core.events import broadcaster
 
 router = APIRouter(prefix="/api", tags=["IoT Vitals"])
 

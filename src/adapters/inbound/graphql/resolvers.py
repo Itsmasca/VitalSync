@@ -475,7 +475,7 @@ class Mutation:
 # ============================================================================
 
 from typing import AsyncGenerator
-from src.adapters.inbound.graphql.broadcaster import broadcaster, EventType
+from src.core.events import broadcaster, EventType
 
 
 @strawberry.type
