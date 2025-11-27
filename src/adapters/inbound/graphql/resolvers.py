@@ -149,19 +149,20 @@ def caregiver_to_gql(caregiver) -> GroupCaregiverType:
     )
 
 
-# Context type for dependency injection
-@strawberry.type
-class Context:
-    user_service: any
-    family_group_service: any
-    family_member_service: any
-    vital_service: any
-    alert_service: any
-    current_user_id: Optional[str] = None
-
-
-def get_context(info) -> Context:
+# Context helper - now uses dictionary
+def get_context(info) -> dict:
+    """Obtiene el contexto (diccionario) desde info"""
     return info.context
+
+
+def get_service(info, name: str):
+    """Helper para obtener un servicio del contexto"""
+    return info.context[name]
+
+
+def get_current_user_id(info) -> Optional[str]:
+    """Helper para obtener el user_id actual"""
+    return info.context.get("current_user_id")
 
 
 @strawberry.type
@@ -171,23 +172,23 @@ class Query:
     async def me(self, info) -> Optional[UserType]:
         """Obtiene el usuario actual autenticado"""
         ctx = get_context(info)
-        if not ctx.current_user_id:
+        if not ctx.get("current_user_id"):
             return None
-        user = await ctx.user_service.get_user_by_id(ctx.current_user_id)
+        user = await ctx["user_service"].get_user_by_id(ctx["current_user_id"])
         return user_to_gql(user) if user else None
 
     @strawberry.field
     async def user(self, info, id: str) -> Optional[UserType]:
         """Obtiene un usuario por ID"""
         ctx = get_context(info)
-        user = await ctx.user_service.get_user_by_id(id)
+        user = await ctx["user_service"].get_user_by_id(id)
         return user_to_gql(user) if user else None
 
     @strawberry.field
     async def users(self, info, limit: int = 100, offset: int = 0) -> List[UserType]:
         """Obtiene todos los usuarios"""
         ctx = get_context(info)
-        users = await ctx.user_service.get_all_users(limit, offset)
+        users = await ctx["user_service"].get_all_users(limit, offset)
         return [user_to_gql(u) for u in users]
 
     # Family Groups
@@ -195,17 +196,18 @@ class Query:
     async def family_group(self, info, id: str) -> Optional[FamilyGroupType]:
         """Obtiene un grupo familiar por ID"""
         ctx = get_context(info)
-        group = await ctx.family_group_service.get_group_by_id(id)
+        group = await ctx["family_group_service"].get_group_by_id(id)
         return family_group_to_gql(group) if group else None
 
     @strawberry.field
     async def my_family_groups(self, info) -> List[FamilyGroupType]:
         """Obtiene grupos donde el usuario es admin o cuidador"""
         ctx = get_context(info)
-        if not ctx.current_user_id:
+        if not ctx.get("current_user_id"):
             return []
-        admin_groups = await ctx.family_group_service.get_groups_by_admin(ctx.current_user_id)
-        caregiver_groups = await ctx.family_group_service.get_groups_by_caregiver(ctx.current_user_id)
+        user_id = ctx["current_user_id"]
+        admin_groups = await ctx["family_group_service"].get_groups_by_admin(user_id)
+        caregiver_groups = await ctx["family_group_service"].get_groups_by_caregiver(user_id)
         all_groups = {g.id: g for g in admin_groups + caregiver_groups}
         return [family_group_to_gql(g) for g in all_groups.values()]
 
@@ -213,7 +215,7 @@ class Query:
     async def family_groups(self, info, limit: int = 100, offset: int = 0) -> List[FamilyGroupType]:
         """Obtiene todos los grupos familiares"""
         ctx = get_context(info)
-        groups = await ctx.family_group_service.get_all_groups(limit, offset)
+        groups = await ctx["family_group_service"].get_all_groups(limit, offset)
         return [family_group_to_gql(g) for g in groups]
 
     # Family Members
@@ -221,21 +223,21 @@ class Query:
     async def family_member(self, info, id: str) -> Optional[FamilyMemberType]:
         """Obtiene un familiar por ID"""
         ctx = get_context(info)
-        member = await ctx.family_member_service.get_member_by_id(id)
+        member = await ctx["family_member_service"].get_member_by_id(id)
         return family_member_to_gql(member) if member else None
 
     @strawberry.field
     async def family_member_by_device(self, info, device_id: str) -> Optional[FamilyMemberType]:
         """Obtiene un familiar por device_id"""
         ctx = get_context(info)
-        member = await ctx.family_member_service.get_member_by_device_id(device_id)
+        member = await ctx["family_member_service"].get_member_by_device_id(device_id)
         return family_member_to_gql(member) if member else None
 
     @strawberry.field
     async def family_members(self, info, family_id: str) -> List[FamilyMemberType]:
         """Obtiene familiares de un grupo"""
         ctx = get_context(info)
-        members = await ctx.family_member_service.get_members_by_family(family_id)
+        members = await ctx["family_member_service"].get_members_by_family(family_id)
         return [family_member_to_gql(m) for m in members]
 
     # Vitals
@@ -243,7 +245,7 @@ class Query:
     async def latest_vital(self, info, member_id: str) -> Optional[VitalType]:
         """Obtiene la última lectura de un familiar"""
         ctx = get_context(info)
-        vital = await ctx.vital_service.get_latest_vital(member_id)
+        vital = await ctx["vital_service"].get_latest_vital(member_id)
         return vital_to_gql(vital) if vital else None
 
     @strawberry.field
@@ -252,14 +254,14 @@ class Query:
     ) -> List[VitalType]:
         """Obtiene lecturas de un familiar"""
         ctx = get_context(info)
-        vitals = await ctx.vital_service.get_vitals_by_member(member_id, limit, offset)
+        vitals = await ctx["vital_service"].get_vitals_by_member(member_id, limit, offset)
         return [vital_to_gql(v) for v in vitals]
 
     @strawberry.field
     async def rolling_vitals(self, info, member_id: str, minutes: int = 2) -> List[VitalType]:
         """Obtiene lecturas de los últimos N minutos (para gráfico rolling)"""
         ctx = get_context(info)
-        vitals = await ctx.vital_service.get_rolling_vitals(member_id, minutes)
+        vitals = await ctx["vital_service"].get_rolling_vitals(member_id, minutes)
         return [vital_to_gql(v) for v in vitals]
 
     @strawberry.field
@@ -268,7 +270,7 @@ class Query:
     ) -> List[DailyAverageType]:
         """Obtiene promedios diarios de métricas"""
         ctx = get_context(info)
-        averages = await ctx.vital_service.get_daily_averages(member_id, start_date, end_date)
+        averages = await ctx["vital_service"].get_daily_averages(member_id, start_date, end_date)
         return [
             DailyAverageType(
                 date=a['date'],
@@ -286,7 +288,7 @@ class Query:
     async def active_alerts(self, info) -> List[AlertType]:
         """Obtiene todas las alertas activas"""
         ctx = get_context(info)
-        alerts = await ctx.alert_service.get_active_alerts()
+        alerts = await ctx["alert_service"].get_active_alerts()
         return [alert_to_gql(a) for a in alerts]
 
     @strawberry.field
@@ -295,14 +297,14 @@ class Query:
     ) -> List[AlertType]:
         """Obtiene alertas de un familiar"""
         ctx = get_context(info)
-        alerts = await ctx.alert_service.get_alerts_by_member(member_id, limit, offset)
+        alerts = await ctx["alert_service"].get_alerts_by_member(member_id, limit, offset)
         return [alert_to_gql(a) for a in alerts]
 
     @strawberry.field
     async def recent_alerts(self, info, hours: int = 24) -> List[AlertType]:
         """Obtiene alertas de las últimas N horas"""
         ctx = get_context(info)
-        alerts = await ctx.alert_service.get_recent_alerts(hours)
+        alerts = await ctx["alert_service"].get_recent_alerts(hours)
         return [alert_to_gql(a) for a in alerts]
 
     # Caregivers
@@ -310,7 +312,7 @@ class Query:
     async def caregivers(self, info, group_id: str) -> List[GroupCaregiverType]:
         """Obtiene cuidadores de un grupo"""
         ctx = get_context(info)
-        caregivers = await ctx.family_group_service.get_caregivers(group_id)
+        caregivers = await ctx["family_group_service"].get_caregivers(group_id)
         return [caregiver_to_gql(c) for c in caregivers]
 
     # System Health
@@ -321,10 +323,10 @@ class Query:
         return SystemHealthType(
             status="healthy",
             timestamp=datetime.now(timezone.utc),
-            active_users=await ctx.user_service.count_users(),
+            active_users=await ctx["user_service"].count_users(),
             active_members=0,  # TODO: implementar
-            readings_last_hour=await ctx.vital_service.count_readings_last_hour(),
-            active_alerts=await ctx.alert_service.count_active_alerts(),
+            readings_last_hour=await ctx["vital_service"].count_readings_last_hour(),
+            active_alerts=await ctx["alert_service"].count_active_alerts(),
             version="VitalSync MVP"
         )
 
@@ -336,7 +338,7 @@ class Mutation:
     async def register(self, info, input: CreateUserInput) -> UserType:
         """Registra un nuevo usuario"""
         ctx = get_context(info)
-        user = await ctx.user_service.create_user(
+        user = await ctx["user_service"].create_user(
             email=input.email,
             password=input.password,
             name=input.name,
@@ -347,13 +349,18 @@ class Mutation:
 
     @strawberry.mutation
     async def login(self, info, input: LoginInput) -> Optional[AuthPayload]:
-        """Inicia sesión y retorna token JWT"""
+        """Inicia sesion y retorna token JWT"""
         ctx = get_context(info)
-        user = await ctx.user_service.authenticate(input.email, input.password)
+        user = await ctx["user_service"].authenticate(input.email, input.password)
         if not user:
             return None
-        # TODO: Generar JWT real
-        token = f"jwt-token-for-{user.id}"
+        # Generar JWT real
+        from src.core.services.auth_service import auth_service
+        token = auth_service.create_access_token(
+            user_id=user.id,
+            email=user.email,
+            role=user.role.value
+        )
         return AuthPayload(token=token, user=user_to_gql(user))
 
     # Family Groups
@@ -361,11 +368,12 @@ class Mutation:
     async def create_family_group(self, info, input: CreateFamilyGroupInput) -> FamilyGroupType:
         """Crea un nuevo grupo familiar"""
         ctx = get_context(info)
-        if not ctx.current_user_id:
+        if not ctx.get("current_user_id"):
             raise Exception("No autenticado")
-        group = await ctx.family_group_service.create_group(
+        user_id = ctx["current_user_id"]
+        group = await ctx["family_group_service"].create_group(
             name=input.name,
-            admin_id=ctx.current_user_id,
+            admin_id=user_id,
             description=input.description,
             plan=SubscriptionPlan(input.plan.value)
         )
@@ -375,12 +383,13 @@ class Mutation:
     async def add_caregiver(self, info, input: AddCaregiverInput) -> GroupCaregiverType:
         """Agrega un cuidador a un grupo"""
         ctx = get_context(info)
-        if not ctx.current_user_id:
+        if not ctx.get("current_user_id"):
             raise Exception("No autenticado")
-        caregiver = await ctx.family_group_service.add_caregiver(
+        user_id = ctx["current_user_id"]
+        caregiver = await ctx["family_group_service"].add_caregiver(
             group_id=input.group_id,
             user_id=input.user_id,
-            invited_by=ctx.current_user_id,
+            invited_by=user_id,
             can_acknowledge_alerts=input.can_acknowledge_alerts,
             can_view_history=input.can_view_history,
             can_edit_members=input.can_edit_members
@@ -392,7 +401,7 @@ class Mutation:
     async def create_family_member(self, info, input: CreateFamilyMemberInput) -> FamilyMemberType:
         """Registra un nuevo familiar monitoreado"""
         ctx = get_context(info)
-        member = await ctx.family_member_service.create_member(
+        member = await ctx["family_member_service"].create_member(
             family_id=input.family_id,
             member_id=input.member_id,
             name=input.name,
@@ -417,7 +426,7 @@ class Mutation:
             temp_max=thresholds.temp_max,
             steps_min=thresholds.steps_min
         )
-        member = await ctx.family_member_service.set_custom_thresholds(member_id, domain_thresholds)
+        member = await ctx["family_member_service"].set_custom_thresholds(member_id, domain_thresholds)
         return family_member_to_gql(member) if member else None
 
     @strawberry.mutation
@@ -425,9 +434,9 @@ class Mutation:
         """Habilita/deshabilita alertas de un familiar"""
         ctx = get_context(info)
         if enabled:
-            member = await ctx.family_member_service.enable_alerts(member_id)
+            member = await ctx["family_member_service"].enable_alerts(member_id)
         else:
-            member = await ctx.family_member_service.disable_alerts(member_id)
+            member = await ctx["family_member_service"].disable_alerts(member_id)
         return family_member_to_gql(member) if member else None
 
     # Vitals
@@ -435,7 +444,7 @@ class Mutation:
     async def record_vital(self, info, input: RecordVitalInput) -> VitalType:
         """Registra una nueva lectura de signos vitales"""
         ctx = get_context(info)
-        vital = await ctx.vital_service.record_vital(
+        vital = await ctx["vital_service"].record_vital(
             device_id=input.device_id,
             heart_rate=input.heart_rate,
             oxygen_level=input.oxygen_level,
@@ -450,23 +459,24 @@ class Mutation:
     async def acknowledge_alert(self, info, alert_id: str) -> Optional[AlertType]:
         """Reconoce una alerta"""
         ctx = get_context(info)
-        if not ctx.current_user_id:
+        if not ctx.get("current_user_id"):
             raise Exception("No autenticado")
-        alert = await ctx.alert_service.acknowledge_alert(alert_id, ctx.current_user_id)
+        user_id = ctx["current_user_id"]
+        alert = await ctx["alert_service"].acknowledge_alert(alert_id, user_id)
         return alert_to_gql(alert) if alert else None
 
     @strawberry.mutation
     async def resolve_alert(self, info, alert_id: str, notes: Optional[str] = None) -> Optional[AlertType]:
         """Resuelve una alerta"""
         ctx = get_context(info)
-        alert = await ctx.alert_service.resolve_alert(alert_id, notes)
+        alert = await ctx["alert_service"].resolve_alert(alert_id, notes)
         return alert_to_gql(alert) if alert else None
 
     @strawberry.mutation
     async def dismiss_alert(self, info, alert_id: str, notes: Optional[str] = None) -> Optional[AlertType]:
         """Descarta una alerta (falso positivo)"""
         ctx = get_context(info)
-        alert = await ctx.alert_service.dismiss_alert(alert_id, notes)
+        alert = await ctx["alert_service"].dismiss_alert(alert_id, notes)
         return alert_to_gql(alert) if alert else None
 
 
