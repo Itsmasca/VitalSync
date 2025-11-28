@@ -210,7 +210,7 @@ class VitalMapper:
             temperature_status=VitalStatus(entity.temperature_status.value),
             steps_status=VitalStatus(entity.steps_status.value),
             overall_status=VitalStatus(entity.overall_status.value),
-            is_anomaly=entity.is_anomaly,
+            is_anomaly=entity.is_anomaly if entity.is_anomaly is not None else False,
             anomaly_source=entity.anomaly_source,
             reading_timestamp=entity.reading_timestamp,
             received_at=entity.received_at

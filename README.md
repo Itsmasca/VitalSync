@@ -1,10 +1,28 @@
 # VitalSync API
 
-Sistema de monitoreo de salud familiar con integracion IoT.
+Family health monitoring system with IoT integration.
 
 ---
 
-## Arquitectura en AWS ECS
+## Demo Video
+
+Watch the full application demo showcasing the architecture and features:
+
+[![VitalSync Demo](https://img.youtube.com/vi/BeXeFX3lSOw/0.jpg)](https://youtu.be/BeXeFX3lSOw)
+
+**Video Link:** https://youtu.be/BeXeFX3lSOw
+
+The demo covers:
+- AWS ECS Fargate deployment architecture
+- Node-RED IoT integration with Xiaomi devices
+- Real-time vital signs monitoring (heart rate, oxygen level, temperature, steps)
+- PostgreSQL RDS database configuration
+- Service Discovery and container communication
+- Dashboard visualization
+
+---
+
+## AWS ECS Architecture
 
 ```
                         VPC
@@ -29,9 +47,9 @@ Sistema de monitoreo de salud familiar con integracion IoT.
 
 ---
 
-## Despliegue en ECS Fargate
+## ECS Fargate Deployment
 
-### 1. Crear Cluster ECS
+### 1. Create ECS Cluster
 
 ```bash
 aws ecs create-cluster \
@@ -40,7 +58,7 @@ aws ecs create-cluster \
     --region us-east-1
 ```
 
-### 2. Crear Namespace para Service Discovery
+### 2. Create Namespace for Service Discovery
 
 ```bash
 aws servicediscovery create-private-dns-namespace \
@@ -49,7 +67,7 @@ aws servicediscovery create-private-dns-namespace \
     --region us-east-1
 ```
 
-### 3. Crear Service Discovery Service
+### 3. Create Service Discovery Service
 
 ```bash
 aws servicediscovery create-service \
@@ -135,7 +153,7 @@ aws servicediscovery create-service \
 }
 ```
 
-### 6. Crear Servicio ECS con Service Discovery
+### 6. Create ECS Service with Service Discovery
 
 ```bash
 aws ecs create-service \
@@ -150,20 +168,20 @@ aws ecs create-service \
 
 ---
 
-## Conexion entre Contenedores ECS
+## ECS Container Communication
 
 ### DNS Service Discovery
 
-Cuando usas Service Discovery en ECS, los servicios se registran automaticamente con un nombre DNS:
+When using Service Discovery in ECS, services are automatically registered with a DNS name:
 
-| Servicio | DNS Interno |
-|----------|-------------|
+| Service | Internal DNS |
+|---------|--------------|
 | API | `api.vitalsync.local` |
 | Node-RED | `nodered.vitalsync.local` |
 
-### Desde Node-RED hacia API
+### From Node-RED to API
 
-En Node-RED, configurar el HTTP Request node:
+In Node-RED, configure the HTTP Request node:
 
 ```
 URL: http://api.vitalsync.local:8000/api/vitals
@@ -171,45 +189,45 @@ URL: http://api.vitalsync.local:8000/api/vitals
 
 ### Security Groups
 
-**SG para API (sg-api):**
+**SG for API (sg-api):**
 ```
 Inbound:
-- Puerto 8000 desde sg-nodered
-- Puerto 8000 desde ALB (si usas)
+- Port 8000 from sg-nodered
+- Port 8000 from ALB (if used)
 
 Outbound:
-- Puerto 5432 hacia sg-rds
-- Puerto 443 hacia 0.0.0.0/0 (ECR)
+- Port 5432 to sg-rds
+- Port 443 to 0.0.0.0/0 (ECR)
 ```
 
-**SG para Node-RED (sg-nodered):**
+**SG for Node-RED (sg-nodered):**
 ```
 Inbound:
-- Puerto 1880 desde tu IP o ALB
+- Port 1880 from your IP or ALB
 
 Outbound:
-- Puerto 8000 hacia sg-api
+- Port 8000 to sg-api
 ```
 
-**SG para RDS (sg-rds):**
+**SG for RDS (sg-rds):**
 ```
 Inbound:
-- Puerto 5432 desde sg-api
+- Port 5432 from sg-api
 ```
 
 ---
 
-## Endpoints API
+## API Endpoints
 
 ### REST
 
-| Metodo | Endpoint | Descripcion |
+| Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/auth/register` | Registrar usuario |
+| POST | `/api/auth/register` | Register user |
 | POST | `/api/auth/login` | Login |
-| GET | `/api/auth/me` | Usuario actual |
-| POST | `/api/auth/refresh` | Refrescar token |
-| POST | `/api/vitals` | Enviar signos vitales |
+| GET | `/api/auth/me` | Current user |
+| POST | `/api/auth/refresh` | Refresh token |
+| POST | `/api/vitals` | Send vital signs |
 | GET | `/health` | Health check |
 
 ### GraphQL
@@ -218,20 +236,20 @@ Endpoint: `POST /graphql`
 
 ---
 
-## Uso desde Node-RED
+## Usage from Node-RED
 
 ### Login
 
 ```json
 {
-  "email": "usuario@vitalsync.com",
+  "email": "user@vitalsync.com",
   "password": "password123"
 }
 ```
 
-POST a `http://api.vitalsync.local:8000/api/auth/login`
+POST to `http://api.vitalsync.local:8000/api/auth/login`
 
-Respuesta:
+Response:
 ```json
 {
   "access_token": "eyJ...",
@@ -241,7 +259,7 @@ Respuesta:
 }
 ```
 
-### Enviar Vitales
+### Send Vitals
 
 ```json
 {
@@ -253,7 +271,7 @@ Respuesta:
 }
 ```
 
-POST a `http://api.vitalsync.local:8000/api/vitals`
+POST to `http://api.vitalsync.local:8000/api/vitals`
 
 Headers:
 ```
@@ -263,25 +281,39 @@ Authorization: Bearer <access_token>
 
 ---
 
-## Variables de Entorno
+## Environment Variables
 
-| Variable | Descripcion | Ejemplo |
+| Variable | Description | Example |
 |----------|-------------|---------|
-| DATABASE_HOST | Endpoint RDS | `xxx.rds.amazonaws.com` |
-| DATABASE_PORT | Puerto DB | `5432` |
-| DATABASE_NAME | Nombre DB | `vitalsync` |
-| DATABASE_USER | Usuario DB | `postgres` |
-| DATABASE_PASSWORD | Password DB | `secreto` |
-| JWT_SECRET | Clave JWT | `clave-secreta` |
-| DEBUG | Modo debug | `false` |
+| DATABASE_HOST | RDS Endpoint | `xxx.rds.amazonaws.com` |
+| DATABASE_PORT | DB Port | `5432` |
+| DATABASE_NAME | DB Name | `vitalsync` |
+| DATABASE_USER | DB User | `postgres` |
+| DATABASE_PASSWORD | DB Password | `secret` |
+| JWT_SECRET | JWT Key | `secret-key` |
+| DEBUG | Debug mode | `false` |
+
+---
+
+## Dashboard
+
+The dashboard for visualizing vital signs data is available at:
+
+**URL:** https://vital-sync-dashboard.vercel.app/
+
+**Access Credentials:**
+| Field | Value |
+|-------|-------|
+| User | kikemc769@gmail.com |
+| Password | 123456 |
 
 ---
 
 ## Troubleshooting
 
-### Error 422 en /api/vitals
+### Error 422 on /api/vitals
 
-Payload debe tener este formato exacto:
+Payload must have this exact format:
 ```json
 {
   "device_id": "string",
@@ -292,15 +324,15 @@ Payload debe tener este formato exacto:
 }
 ```
 
-### No conecta Node-RED a API
+### Node-RED not connecting to API
 
-1. Verificar que ambos servicios esten en la misma VPC
-2. Verificar Security Groups permiten el trafico
-3. Verificar Service Discovery esta configurado
-4. Probar DNS: `nslookup api.vitalsync.local`
+1. Verify both services are in the same VPC
+2. Verify Security Groups allow traffic
+3. Verify Service Discovery is configured
+4. Test DNS: `nslookup api.vitalsync.local`
 
-### Error conexion RDS
+### RDS Connection Error
 
-1. Verificar Security Group de RDS permite puerto 5432 desde ECS
-2. Verificar RDS esta en la misma VPC
-3. Verificar credenciales en variables de entorno
+1. Verify RDS Security Group allows port 5432 from ECS
+2. Verify RDS is in the same VPC
+3. Verify credentials in environment variables
