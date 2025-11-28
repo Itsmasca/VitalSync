@@ -8,8 +8,10 @@ from typing import Optional
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from strawberry.fastapi import GraphQLRouter
+from strawberry.extensions import SchemaExtension
 
-from src.adapters.inbound.graphql.resolvers import schema
+from src.adapters.inbound.graphql.resolvers import Query, Mutation, Subscription
+import strawberry
 from src.adapters.inbound.rest.routes import router as vitals_router
 from src.adapters.outbound.persistance import (
     AsyncSessionLocal, init_db,
@@ -21,6 +23,16 @@ from src.core.services import (
     VitalService, AlertService
 )
 from src.config.Settings import settings
+
+
+class SessionCleanupExtension(SchemaExtension):
+    """Extensión para cerrar la sesión de DB después de cada request GraphQL"""
+
+    async def on_request_end(self):
+        context = self.execution_context.context
+        if context and "db_session" in context:
+            session = context["db_session"]
+            await session.close()
 
 
 @asynccontextmanager
@@ -96,9 +108,17 @@ def create_app() -> FastAPI:
             "db_session": session  # Para cerrar después si es necesario
         }
 
+    # Schema con extensión para limpiar sesiones
+    schema_with_cleanup = strawberry.Schema(
+        query=Query,
+        mutation=Mutation,
+        subscription=Subscription,
+        extensions=[SessionCleanupExtension]
+    )
+
     # GraphQL router
     graphql_app = GraphQLRouter(
-        schema,
+        schema_with_cleanup,
         context_getter=get_context
     )
 
