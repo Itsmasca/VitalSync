@@ -158,7 +158,7 @@ async def login(data: LoginInput):
 
         # Registrar login
         user.register_login()
-        await user_repo.save(user)
+        await user_repo.update(user)
 
         # Generar tokens
         access_token = auth_service.create_access_token(
@@ -268,7 +268,7 @@ async def reset_password(data: PasswordResetInput):
         ).decode('utf-8')
 
         user.password_hash = new_password_hash
-        await user_repo.save(user)
+        await user_repo.update(user)
 
         return {"message": "Contraseña reseteada exitosamente"}
 
