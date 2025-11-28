@@ -38,11 +38,8 @@ class SessionCleanupExtension(SchemaExtension):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Inicializa la base de datos al arrancar"""
-    print("🏥 Inicializando base de datos...")
     await init_db()
-    print("✅ Base de datos inicializada")
     yield
-    print("👋 Cerrando VitalSync...")
 
 
 def create_app() -> FastAPI:
