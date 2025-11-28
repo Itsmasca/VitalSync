@@ -82,18 +82,20 @@ class FamilyGroupMapper:
 
     @staticmethod
     def to_domain(entity: FamilyGroupEntity) -> FamilyGroup:
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
         return FamilyGroup(
             id=str(entity.id),
             name=entity.name,
             description=entity.description,
             admin_id=str(entity.admin_id),
-            plan=SubscriptionPlan(entity.plan.value),
+            plan=SubscriptionPlan(entity.plan.value) if entity.plan else SubscriptionPlan.FREE,
             plan_started_at=entity.plan_started_at,
             plan_expires_at=entity.plan_expires_at,
-            timezone_str=entity.timezone_str,
-            is_active=entity.is_active,
-            created_at=entity.created_at,
-            updated_at=entity.updated_at
+            timezone_str=entity.timezone_str or "America/Mexico_City",
+            is_active=entity.is_active if entity.is_active is not None else True,
+            created_at=entity.created_at or now,
+            updated_at=entity.updated_at or now
         )
 
 
@@ -129,6 +131,8 @@ class FamilyMemberMapper:
 
     @staticmethod
     def to_domain(entity: FamilyMemberEntity) -> FamilyMember:
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
         thresholds = VitalThresholds(
             hr_min=entity.custom_hr_min,
             hr_max=entity.custom_hr_max,
@@ -146,17 +150,17 @@ class FamilyMemberMapper:
             date_of_birth=entity.date_of_birth,
             gender=Gender(entity.gender.value) if entity.gender else None,
             device_id=entity.device_id,
-            device_type=DeviceType(entity.device_type.value),
+            device_type=DeviceType(entity.device_type.value) if entity.device_type else DeviceType.SMARTWATCH,
             device_name=entity.device_name,
             medical_notes=entity.medical_notes,
             emergency_contact=entity.emergency_contact,
             emergency_phone=entity.emergency_phone,
             thresholds=thresholds,
-            is_active=entity.is_active,
-            alerts_enabled=entity.alerts_enabled,
+            is_active=entity.is_active if entity.is_active is not None else True,
+            alerts_enabled=entity.alerts_enabled if entity.alerts_enabled is not None else True,
             avatar_url=entity.avatar_url,
-            created_at=entity.created_at,
-            updated_at=entity.updated_at
+            created_at=entity.created_at or now,
+            updated_at=entity.updated_at or now
         )
 
 
@@ -272,13 +276,14 @@ class GroupCaregiverMapper:
 
     @staticmethod
     def to_domain(entity: GroupCaregiverEntity) -> GroupCaregiver:
+        from datetime import datetime, timezone
         return GroupCaregiver(
             id=str(entity.id),
             group_id=str(entity.group_id),
             user_id=str(entity.user_id),
-            can_acknowledge_alerts=entity.can_acknowledge_alerts,
-            can_view_history=entity.can_view_history,
-            can_edit_members=entity.can_edit_members,
-            joined_at=entity.joined_at,
+            can_acknowledge_alerts=entity.can_acknowledge_alerts if entity.can_acknowledge_alerts is not None else True,
+            can_view_history=entity.can_view_history if entity.can_view_history is not None else True,
+            can_edit_members=entity.can_edit_members if entity.can_edit_members is not None else False,
+            joined_at=entity.joined_at or datetime.now(timezone.utc),
             invited_by=str(entity.invited_by) if entity.invited_by else None
         )
