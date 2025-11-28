@@ -50,8 +50,8 @@ async def require_auth(
             detail="Token inválido o expirado",
             headers={"WWW-Authenticate": "Bearer"}
         )
-
-    return payload["sub"]  # user_id
+    
+    return payload["sub"] 
 
 
 async def get_current_user_payload(

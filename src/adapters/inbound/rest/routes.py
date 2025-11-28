@@ -1,6 +1,7 @@
 """
 Rutas REST para VitalSync - IoT y Autenticacion.
 """
+import os
 from datetime import datetime, timezone
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -53,6 +54,11 @@ class TokenResponse(BaseModel):
 class RefreshInput(BaseModel):
     """Schema para refresh token"""
     refresh_token: str
+
+
+class PasswordResetInput(BaseModel):
+    """Schema para reset de contraseña"""
+    email: EmailStr
 
 
 class UserResponse(BaseModel):
@@ -144,7 +150,6 @@ async def login(data: LoginInput):
                 detail="Credenciales invalidas"
             )
 
-        # Verificar que el usuario esté activo
         if not user.is_active:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -237,6 +242,37 @@ async def refresh_token(data: RefreshInput):
         )
 
 
+@router.post("/auth/password-reset", status_code=200, tags=["Auth"])
+async def reset_password(data: PasswordResetInput):
+    """
+    Resetea la contraseña de un usuario a un valor por defecto.
+    RF-AUTH-05: Reset de contraseña
+    """
+    async with AsyncSessionLocal() as session:
+        user_repo = UserRepositoryImpl(session)
+
+        user = await user_repo.get_by_email(data.email)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Usuario no encontrado"
+            )
+
+        # Obtener contraseña por defecto de variable de entorno
+        default_password = os.getenv("DEFAULT_PASSWORD", "VitalSync123!")
+
+        # Hash de la contraseña por defecto
+        new_password_hash = bcrypt.hashpw(
+            default_password.encode('utf-8'),
+            bcrypt.gensalt()
+        ).decode('utf-8')
+
+        user.password_hash = new_password_hash
+        await user_repo.save(user)
+
+        return {"message": "Contraseña reseteada exitosamente"}
+
+
 # ============== IOT VITALS SCHEMAS ==============
 
 
@@ -296,7 +332,10 @@ class HealthResponse(BaseModel):
 
 
 @router.post("/vitals", response_model=VitalReadingResponse, status_code=201)
-async def record_vital(reading: VitalReadingInput):
+async def record_vital(
+    reading: VitalReadingInput,
+    custom_user: str = Depends(require_auth)
+    ):
     """
     Recibe una lectura de signos vitales desde un dispositivo IoT (Node-RED).
 
@@ -380,12 +419,21 @@ async def record_vital(reading: VitalReadingInput):
 
 
 @router.get("/vitals/latest/{device_id}", response_model=Optional[VitalReadingResponse])
-async def get_latest_vital(device_id: str):
+async def get_latest_vital(
+    device_id: str,
+    customer_user: str = Depends(require_auth)
+):
     """
     Obtiene la última lectura de un dispositivo.
 
     RF-DASH-01: Dashboard en tiempo real
     """
+    if customer_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token de autenticación requerido",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
     async with AsyncSessionLocal() as session:
         family_member_repo = FamilyMemberRepositoryImpl(session)
         vital_repo = VitalRepositoryImpl(session)
