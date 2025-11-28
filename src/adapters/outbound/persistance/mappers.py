@@ -236,6 +236,7 @@ class AlertMapper:
 
     @staticmethod
     def to_domain(entity: AlertEntity) -> Alert:
+        from datetime import datetime, timezone
         return Alert(
             id=str(entity.id),
             member_id=str(entity.member_id),
@@ -251,7 +252,7 @@ class AlertMapper:
             acknowledged_at=entity.acknowledged_at,
             resolved_at=entity.resolved_at,
             resolution_notes=entity.resolution_notes,
-            created_at=entity.created_at
+            created_at=entity.created_at or datetime.now(timezone.utc)
         )
 
 
