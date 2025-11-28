@@ -8,7 +8,7 @@ from src.config.Settings import settings
 
 def main():
     """Inicia el servidor VitalSync"""
-    print("🏥 Iniciando VitalSync API...")
+    print("Iniciando VitalSync API...")
     print(f"   Host: {settings.HOST}")
     print(f"   Port: {settings.PORT}")
     print(f"   Debug: {settings.DEBUG}")
