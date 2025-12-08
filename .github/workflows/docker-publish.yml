@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
 
 env:
-  DOCKER_IMAGE: sudomasca/vitalsync
+  DOCKER_IMAGE: sudomascanexone/121core
 
 jobs:
   build-and-push:

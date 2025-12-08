@@ -9,7 +9,7 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  ECR_REPOSITORY: vitalsync
+  ECR_REPOSITORY: 121agents/core
 
 jobs:
   build-and-push:
